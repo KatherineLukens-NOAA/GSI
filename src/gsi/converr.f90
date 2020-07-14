@@ -76,6 +76,11 @@ contains
 
      integer(i_kind):: ier
 
+     !======================================
+     ! klukens
+     integer(i_kind),parameter     :: loon_id = 599
+     !======================================
+
      allocate(etabl(300,33,6))
 
      etabl=1.e9_r_kind
@@ -98,6 +103,7 @@ contains
 100     format(1x,i3)
         lcount=lcount+1
         do k=1,33
+           if(itypex==loon_id) write(6,*) 'KATIE converr: LOON error table read: ',etabl(itypex,13,4)
            read(ietabl,110)(etabl(itypex,k,m),m=1,6)
 110        format(1x,6e12.5)
         end do

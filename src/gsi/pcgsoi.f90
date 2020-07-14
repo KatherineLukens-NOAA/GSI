@@ -206,6 +206,8 @@ subroutine pcgsoi()
   if(verbose)print_verbose=.true.
   if (ladtest) call adtest()
 
+  print_verbose=.true.  !klukens
+
 ! Set constants.  Initialize variables.
   restart=.false.
   if (jiter==0 .and. (iguess==1 .or. iguess==2)) restart=.true.

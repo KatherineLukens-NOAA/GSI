@@ -83,6 +83,12 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
    integer(i_kind)                                  ,intent(in   ) :: nobs  ! number of observations
    integer(i_kind)                                  ,intent(in   ) :: is    ! ndat index
    logical                                          ,intent(in   ) :: conv_diagsave ! logical to save innovation dignostics
+
+  !=====================================
+  ! klukens
+  integer(i_kind),parameter:: loon_id = 599
+  !=====================================
+
    
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -1178,6 +1184,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            nn=2
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
+                !write(6,*) 'KATIE: setupw npresprint=',npres_print
+        !===========================================
+        ! klukens
+        if(itype==loon_id) then
+           write(6,*) 'KATIE setupw: asm 1, rej 2, mon 3: nn=',nn,'...spdb=',spdb,'...ressw=',ressw,'...uob=',uob,'...vob=',vob,'...ugesin=',ugesin,'...vgesin=',vgesin,'...dudiff=',dudiff,'...dvdiff=',dvdiff,',muse(',i,')=',muse(i),',ratio_errors=',ratio_errors,',error=',error
+        end if
+        !===========================================
         do k = 1,npres_print
            if(presw >ptop(k) .and. presw<=pbot(k))then
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
@@ -1185,7 +1198,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
               bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
               bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc2         ! nonlin qc penalty
- 
            end if
         end do
      end if

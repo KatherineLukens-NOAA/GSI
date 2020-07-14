@@ -171,6 +171,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   real(r_double) :: satid,rtype
   character(8) subset
   logical,parameter:: GMAO_READ=.false.
+  
+  !======================================
+  ! klukens
+  integer(i_kind),parameter     :: loon_id = 599
+  !======================================
 
   satid=1      ! debug executable wants default value ???
   idate=0
@@ -400,6 +405,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
               if (kx==333 .or. kx==433 .or. kx==533) kx=233
               if (kx==334 .or. kx==434 .or. kx==534) kx=234
               if (kx==335 .or. kx==435 .or. kx==535) kx=235
+	      if (kx==loon_id)			     kx=loon_id		!klukens
            else
               if (kx==330 .or. kx==430 .or. kx==530) kx=130
               if (kx==331 .or. kx==431 .or. kx==531) kx=131
@@ -544,6 +550,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   end if
   if(lexist)then
       write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype,jsatid
+      write(6,*)'KATIE readobs: dtype=',dtype,',nread=',nread		!klukens
   else
       write(6,*)'read_obs_check: bufr file ',dtype,jsatid,' not available ',trim(filename)
   end if
@@ -798,6 +805,7 @@ subroutine read_obs(ndata,mype)
     npem1=npe-1
     nprof_gps1=0
 
+        !obs error tables are read here!
     if(njqc) then
        call converr_ps_read(mype)
        call converr_q_read(mype)

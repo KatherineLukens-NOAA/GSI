@@ -243,6 +243,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r0_1_bmiss=one_tenth*bmiss
   real(r_kind),parameter:: r0_01_bmiss=r0_01*bmiss
   character(80),parameter:: cspval= '88888888'
+  
+  !========================================
+  ! klukens
+  integer(i_kind)		:: nproflread
+  integer(i_kind), parameter	:: loon_id = 599
+  !========================================
 
 !  integer(i_kind),parameter:: mxtb=5000000
 !  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
@@ -542,7 +548,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        else
           if (aircraft_t_bc) then
              aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140) .or. &
-                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240))
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240) .or. &
+			   ictype(nc) == loon_id)	!klukens
              if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
              if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
           end if
@@ -557,8 +564,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             cycle
         else
            if (aircraft_t_bc) then
-             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140).or. &
-                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240))
+             aircrafttype=(ictype(nc) == 130 .or. ictype(nc) == 131 .or. (ictype(nc) >= 133 .and. ictype(nc)<140) .or. &
+                           ictype(nc) == 230 .or. ictype(nc) == 231 .or. (ictype(nc) >= 233 .and. ictype(nc)<240) .or. &
+			   ictype(nc) == loon_id)	!klukens
               if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
               if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
            end if
@@ -640,6 +648,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
               if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
               if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+	      if (kx0==loon_id)				kx=loon_id	!klukens
            end if
         end if
         !* for new vad wind
@@ -806,6 +815,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if (twodvar_regional) call init_ndfdgrid 
 
 ! loop over convinfo file entries; operate on matches
+  
+  nproflread=0	!klukens
   
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
   isort = 0
@@ -993,7 +1004,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  call grdcrd1(dlon,rlons,nlon,1)
               endif
            else
-              call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
+              if(kx == loon_id) then	!klukens
+	        call ufbint(lunin,hdr3,3,1,levs,'XDR YDR HRDR')
+	      else
+                call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
+	      endif
               kx0=kx
               if (.not. uvob) then
                  if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
@@ -1009,6 +1024,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
                  if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
                  if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+		 if (kx0==loon_id)			   kx=loon_id	!klukens
               end if
            endif
 
@@ -1087,22 +1103,40 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            endif
      
 !          Extract data information on levels
-           call ufbint(lunin,obsdat,13,255,levs,obstr)
+	   if(kx==loon_id) then		!klukens
+	      call ufbint(lunin,obsdat,13,1,levs,obstr)
+	   else
+              call ufbint(lunin,obsdat,13,255,levs,obstr)
+	   endif
            if (twodvar_regional) then
               if (mxtmob .or. mitmob) call ufbint(lunin,maxtmint,2,255,levs,maxtmintstr)
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
               if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)
            endif
            if(kx==224 .and. newvad) then
-           call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
+              call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
            end if
-           call ufbint(lunin,qcmark,8,255,levs,qcstr)
-           call ufbint(lunin,obserr,8,255,levs,oestr)
+	   if(kx==loon_id) then		!klukens
+	      call ufbint(lunin,qcmark,8,1,levs,qcstr)
+              call ufbint(lunin,obserr,8,1,levs,oestr)
+             	obserr(5,1)=2.0     !reset obserr=0 to obserr=2 m/s like for raobs
+              IF(qcmark(5,1)>qcmark_huge) qcmark(:,1)=-999.
+	      write(6,*) 'KATIE readprepbufr: qcmark(uv)=',qcmark(:,1),',obserr(uv)=',obserr(5,1)   
+	   else
+              call ufbint(lunin,qcmark,8,255,levs,qcstr)
+              call ufbint(lunin,obserr,8,255,levs,oestr)
+	   endif
            call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
 
+	   !===============================
+	   ! klukens
+	   if(kx==loon_id) oberrflg=.true.
+	   !===============================
+
 !          If available, get obs errors from error table
-           
-           if(oberrflg .and. kx<= 300)then
+           if(oberrflg .and. kx==loon_id)then
+
+                write(6,*) 'KATIE: read_prepbufr Loon: oberrflg=',oberrflg
 
 !             Set lower limits for observation errors
               terrmin=half
@@ -1168,111 +1202,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        if (var_jb(1,k) >=10.0_r_kind) var_jb(1,k)=zero
                     enddo
                  endif
-                if (tob) then
-                    itypex=itypey
-                    ierr_t=0
-                    do i =1,maxsub_t
-                       if( icsubtype(nc) == isuble_t(itypex,i) ) then
-                          ierr_t=i+1
-                          exit
-                       else if( i == maxsub_t .and. icsubtype(nc) /= isuble_t(itypex,i)) then
-                          ncount_t=ncount_t+1
-                          do j=1,maxsub_t
-                             if(isuble_t(itypex,j) ==0 ) then
-                                ierr_t=j+1
-                                exit
-                             endif
-                          enddo
-                          if( ncount_t ==1) then
-                             write(6,*) 'READ_PREPBUFR,WARNING!! tob:cannot find subtyep in the error,& 
-                                         table,itype,iosub=',itypex,icsubtype(nc)
-                             write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_t
-                          endif
-                       endif
-                    enddo
-                    do k=1,levs
-                       ppb=obsdat(1,k)
-                       if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
-                       ppb=max(zero,min(ppb,r2000))
-                       if(ppb>=etabl_t(itypex,1,1)) k1_t=1
-                       do kl=1,32
-                          if(ppb>=etabl_t(itypex,kl+1,1).and.ppb<=etabl_t(itypex,kl,1)) k1_t=kl
-                       end do
-                       if(ppb<=etabl_t(itypex,33,1)) k1_t=5
-                       k2_t=k1_t+1
-                       ediff_t = etabl_t(itypex,k2_t,1)-etabl_t(itypex,k1_t,1)
-                       if (abs(ediff_t) > tiny_r_kind) then
-                          del_t = (ppb-etabl_t(itypex,k1_t,1))/ediff_t
-                       else
-                         del_t = huge_r_kind
-                       endif
-                       del_t=max(zero,min(del_t,one))
-! Temperature error
-                       if(oberrflg)then
-!                         write(6,*) 'READ_PREPBUFR_T:',itypex,k1_t,itypey,k2_t,ierr_t,nc,kx,ppb
-                          obserr(3,k)=(one-del_t)*etabl_t(itypex,k1_t,ierr_t)+del_t*etabl_t(itypex,k2_t,ierr_t)
-                          obserr(3,k)=max(obserr(3,k),terrmin)
-                       endif
-!Temperature b
-                       var_jb(3,k)=(one-del_t)*btabl_t(itypex,k1_t,ierr_t)+del_t*btabl_t(itypex,k2_t,ierr_t)
-                       var_jb(3,k)=max(var_jb(3,k),tjbmin)
-                       if (var_jb(3,k) >=10.0_r_kind) var_jb(3,k)=zero
-                    enddo
-                 endif
-                 if (qob) then
-                    itypex=itypey
-                    ierr_q=0
-                    do i =1,maxsub_q
-                       if( icsubtype(nc) == isuble_q(itypex,i) ) then
-                          ierr_q=i+1
-                          exit
-                       else if( i == maxsub_q .and. icsubtype(nc) /= isuble_q(itypex,i)) then
-                          ncount_q=ncount_q+1
-                          do j=1,maxsub_q
-                             if(isuble_q(itypex,j) ==0 ) then
-                                ierr_q=j+1
-                                exit
-                             endif
-                          enddo
-                          if(ncount_q ==1 ) then
-                             write(6,*) 'READ_PREPBUFR,WARNING!! qob:cannot find subtyep in the & 
-                                        error table,itype,iosub=',itypex,icsubtype(nc)
-                             write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_q
-                          endif
-                       endif
-                    enddo
-                    do k=1,levs
-                       ppb=obsdat(1,k)
-                       if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
-                       ppb=max(zero,min(ppb,r2000))
-                       if(ppb>=etabl_q(itypex,1,1)) k1_q=1
-                       do kl=1,32
-                          if(ppb>=etabl_q(itypex,kl+1,1).and.ppb<=etabl_q(itypex,kl,1)) k1_q=kl
-                       end do
-                       if(ppb<=etabl_q(itypex,33,1)) k1_q=5
-                       k2_q=k1_q+1
-                       ediff_q = etabl_q(itypex,k2_q,1)-etabl_q(itypex,k1_q,1)
-                       if (abs(ediff_q) > tiny_r_kind) then
-                          del_q = (ppb-etabl_q(itypex,k1_q,1))/ediff_q
-                       else
-                         del_q = huge_r_kind
-                       endif
-                       del_q=max(zero,min(del_q,one))
-! Humidity error
-                       if(oberrflg)then
-!                          write(6,*) 'READ_PREPBUFR_Q:',itypex,k1_q,itypey,k2_q,ierr_q,nc,kx,ppb
-                          obserr(2,k)=(one-del_q)*etabl_q(itypex,k1_q,ierr_q)+del_q*etabl_q(itypex,k2_q,ierr_q)
-                          obserr(2,k)=max(obserr(2,k),qerrmin)
-                       endif
-!Humidity b
-                       var_jb(2,k)=(one-del_q)*btabl_q(itypex,k1_q,ierr_q)+del_q*btabl_q(itypex,k2_q,ierr_q)
-                       var_jb(2,k)=max(var_jb(2,k),qjbmin)
-                       if (var_jb(2,k) >=10.0_r_kind) var_jb(2,k)=zero
-!                      if(itypey==120  ) then
-!                        write(6,*) 'READ_PREPBUFR:120_q,obserr,var_jb=',obserr(2,k),var_jb(2,k),ppb
-!                      endif
-                    enddo
-                endif
+                
                 if (uvob) then
                    itypex=itypey
                    ierr_uv=0
@@ -1323,58 +1253,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                      if(itypey==220) then
 !                         write(6,*) 'READ_PREPBUFR:220_uv,obserr,var_jb=',obserr(5,k),var_jb(5,k),ppb,k2_uv,del_uv
 !                      endif
+
+                        write(6,*) 'KATIE: read_prepbufr njqc obserr=',obserr(5,k)
+                        write(6,*) 'KATIE: read_prepbufr njqc var_jb=',var_jb(5,k)
+
                    enddo
                 endif
-                if (pwob)  then
-                   itypex=itypey
-                   ierr_pw=0
-                   do i =1,maxsub_pw
-                      if(icsubtype(nc) == isuble_pw(itypex,i) ) then
-                         ierr_pw=i+1
-                         exit
-                      else if( i == maxsub_pw .and. icsubtype(nc) /= isuble_pw(itypex,i)) then
-                         ncount_pw=ncount_pw+1
-                         do j=1,maxsub_pw
-                            if(isuble_pw(itypex,j) ==0 ) then
-                               ierr_pw=j+1
-                               exit
-                            endif
-                         enddo
-                         if(ncount_pw ==1 ) then
-                            write(6,*) 'READ_PREPBUFR,WARNING!! pwob:cannot find subtyep in the error,&
-                                        table,itypex,iosub=',itypex,icsubtype(nc)
-                            write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr_pw
-                         endif
-                      endif
-                   enddo
-                   do k=1,levs
-                      ppb=obsdat(1,k)
-                      if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
-                      ppb=max(zero,min(ppb,r2000))
-                      if(ppb>=etabl_pw(itypex,1,1)) k1_pw=1
-                      do kl=1,32
-                         if(ppb>=etabl_pw(itypex,kl+1,1).and.ppb<=etabl_pw(itypex,kl,1)) k1_pw=kl
-                      end do
-                      if(ppb<=etabl_pw(itypex,33,1)) k1_pw=5
-                      k2_pw=k1_pw+1
-                      ediff_pw = etabl_pw(itypex,k2_pw,1)-etabl_pw(itypex,k1_pw,1)
-                      if (abs(ediff_pw) > tiny_r_kind) then
-                         del_pw = (ppb-etabl_pw(itypex,k1_pw,1))/ediff_pw
-                      else
-                         del_pw = huge_r_kind
-                      endif
-                      del_pw=max(zero,min(del_pw,one))
-                      if(oberrflg)then
-! Precip water error
-!                        write(6,*) 'READ_PREPBUFR_Pw:',itypex,itypey,ierr_pw,k2_pw,ierr_pw,nc,kx,ppb
-                         obserr(7,k)=(one-del_pw)*etabl_pw(itypex,k1_pw,ierr_pw)+del_pw*etabl_pw(itypex,k2_pw,ierr_pw)
-                         obserr(7,k)=max(obserr(7,k),pwerrmin)
-                      endif
-                   enddo
-                endif
+                
              else
                 do k=1,levs
                    itypex=kx
+		   	write(6,*) 'KATIE: read_prepbufr oberrflg IF: itypex=Loon=',itypex
                    ppb=obsdat(1,k)
                    if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
                    ppb=max(zero,min(ppb,r2000))
@@ -1402,6 +1291,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    obserr(5,k)=max(obserr(5,k),werrmin)
                    obserr(1,k)=max(obserr(1,k),perrmin)
                    obserr(7,k)=max(obserr(7,k),pwerrmin)
+		   
+		   write(6,*) 'KATIE: read_prepbufr NOnjqc obserr=',obserr(5,k)
+			
                 enddo
              endif      ! endif for njqc
            endif        ! endif for oberrflg
@@ -1412,9 +1304,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! raob level enhancement on temp and q obs 
            if(ext_sonde .and. kx==120) call sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levs,kx,vtcd)
 
+	   if(kx==loon_id) then         !klukens
+              nproflread = nproflread+1
+              write(6,*) 'KATIE readprepbufr: n profiles read(nproflread)=',nproflread,',index imsg loop (outer)=',nmsg,',index ireadsb loop (inner)=',ntb,',hdr(2)=lat/lon=',hdr(2),',hdr(3)=lat/lon=',hdr(3)
+           endif
+
            nread=nread+levs
            aircraftobs = (kx==130) .or. (kx==131) .or. (kx>=133 .and. kx<140) .or. &
-                         (kx==230) .or. (kx==231) .or. (kx>=233 .and. kx<240)
+                         (kx==230) .or. (kx==231) .or. (kx>=233 .and. kx<240) .or. &
+			 (kx==loon_id)		!klukens
            aircraftobst = .false.
            if(uvob)then
               nread=nread+levs
@@ -1872,6 +1770,37 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     end do
                  endif
               end if
+	      !==================================================
+	      ! klukens
+	      if(kx==loon_id  &
+                 .and. ((uvob .and. levs == 1) .or. ithinp))then
+!                Interpolate guess pressure profile to observation location
+                 klon1= int(dlon);  klat1= int(dlat)
+                 dx   = dlon-klon1; dy   = dlat-klat1
+                 dx1  = one-dx;     dy1  = one-dy
+                 w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+                 klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+                 if (klon1==0) klon1=nlon
+                 klatp1=min(nlat,klat1+1); klonp1=klon1+1
+                 if (klonp1==nlon+1) klonp1=1
+
+                 do kk=1,nsig
+                    presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
+                              w10*prsl_full(klatp1,klon1 ,kk) + &
+                              w01*prsl_full(klat1 ,klonp1,kk) + &
+                              w11*prsl_full(klatp1,klonp1,kk)
+                        !write(6,*) 'KATIE readprepbufr: PRESL kx=',kx,',presl(',kk,')=',presl(kk),',pressure(1,1)=',obsdat(1,1)
+                 end do
+
+!                Compute depth of guess pressure layersat observation location
+                 if (.not.twodvar_regional .and. levs == 1) then
+                    do kk=1,nsig-1
+                       dpres(kk)=presl(kk)-presl(kk+1)
+                    end do
+                 endif
+              end if
+	      !==================================================
 
 !             Missing Values ==>  Cycling! In this case for howv only.  #ww3 
               if (howvob  .and. owave(1,k) > r0_1_bmiss) cycle LOOP_K_LEVS
@@ -1914,8 +1843,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
               endif
 
-              if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
+              if ((kx>129.and.kx<140).or.(kx>229.and.kx<240).or.(kx==loon_id)) then	!klukens
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
+                 if(kx==loon_id) write(6,*) 'KATIE: read_prepbufr aircraft usage=',usage        !klukens
               endif
               if(plevs(k) < 0.0001_r_kind) then
                  write(*,*) 'warning: obs pressure is too small:',kx,k,plevs(k)
@@ -2074,6 +2004,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(uvob) then 
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+                 !       write(6,*) 'KATIE: read_prepbufr errout=',errout
                  else
                     call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  end if
@@ -2161,6 +2092,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        vdisterrmax=max(vdisterrmax,disterr)
                     end if
                  endif
+
+                 if(kx==loon_id) then
+                    write(6,*) 'KATIE readprepbufr: cdata_all: nc=type=',nc,',uob=',uob,',vob=',vob,',usage=',usage,',obserr(5,k)=',obserr(5,k),',wqm(k)=',wqm(k),',oelev=ht=',oelev,',woe=',woe,',nproflread=',nproflread
+                    write(6,*) 'KATIE readprepbufr: cdata_all: nc=type=',nc,',dlnpob=',dlnpob,',rstation_id=',rstation_id,',ndata(ndata retained)=',ndata,',nodata(total ndata read)=',nodata,',iout=',iout
+                 end if
 
                  cdata_all(1,iout)=woe                     ! wind error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
